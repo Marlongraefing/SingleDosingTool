@@ -67,9 +67,9 @@ void setup() {
 }
 
 
-void runMotorForMiliseceonds(int miliseconds){
+void runMotorForMilliseconds(int milliseconds){
   digitalWrite(MOTOR_PIN, HIGH);
-  delay(miliseconds);
+  delay(milliseconds);
   digitalWrite(MOTOR_PIN, LOW);
 }
 
@@ -101,7 +101,7 @@ void loop() {
       break;
     }
     case Mode::precise_dispense:{
-      runMotorForMiliseceonds(200);
+      runMotorForMilliseconds(200);
       delay(150);
       float weight = scale.getWeight(5);
       Serial.println(weight);
