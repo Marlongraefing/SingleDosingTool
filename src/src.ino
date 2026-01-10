@@ -28,13 +28,14 @@
  */
 const int HX_DOUT_PIN = GPIO_NUM_19;
 const int HX_SCK_PIN  = GPIO_NUM_18;
+const int MOTOR_PIN   = GPIO_NUM_17;
+const float TARGET_WEIGHT_GRAMS = 16.0;
 
 /**
  * Calibration factor
  * - Value is raw units per gram
  * - Adjust after calibration for your load cell
  */
-//86.38
 float CALIBRATION_FACTOR = 552.6;
 
 /**
@@ -51,42 +52,71 @@ HX711_7semi scale(HX_DOUT_PIN, HX_SCK_PIN);
  */
 void setup() {
   Serial.begin(9600);
-  pinMode(GPIO_NUM_17, OUTPUT);
+  pinMode(MOTOR_PIN, OUTPUT);
 
   scale.begin();
-  scale.setGain(GAIN_64);
+  scale.setGain(GAIN_128);
   scale.setTimeout(1000);
   scale.setScale(CALIBRATION_FACTOR);
-
-  Serial.println("HX711 simple example");
   Serial.println("Taring... remove any load");
   delay(2000);
-
-  scale.tare();   /* uses default sample count */
-
+  scale.tare(10);   /* uses default sample count */
   Serial.println("Tare done.");
-  Serial.println("Place weight on the load cell.");
+  Serial.println("Starting dispense.");
+  digitalWrite(MOTOR_PIN, HIGH);
 }
 
-/**
- * Main loop
- * - Read weight in grams
- * - Print to serial monitor
- */
-bool motor = false;
+
+void runMotorForMiliseceonds(int miliseconds){
+  digitalWrite(MOTOR_PIN, HIGH);
+  delay(miliseconds);
+  digitalWrite(MOTOR_PIN, LOW);
+}
+
+void runMotorUntilWeight(float targetWeight){
+  digitalWrite(MOTOR_PIN, HIGH);
+  while(true){
+    float weight = scale.getWeight(1);
+    Serial.println(weight);
+    if(weight >= targetWeight){
+      digitalWrite(MOTOR_PIN, LOW);
+      return;
+    }
+  }
+}
+
+enum class Mode{
+  fast_dispense,
+  precise_dispense,
+  done
+};
+
+Mode mode = Mode::fast_dispense;
 
 void loop() {
-  float weight = scale.getWeight(1);  /* uses default averaging */
-  if(motor){
-    digitalWrite(GPIO_NUM_17, HIGH);
-    motor = false;
-  } else {
-    digitalWrite(GPIO_NUM_17, LOW);
-    motor = true;
+  switch(mode){
+    case Mode::fast_dispense:{
+      runMotorUntilWeight(TARGET_WEIGHT_GRAMS*0.85);
+      mode = Mode::precise_dispense;
+      break;
+    }
+    case Mode::precise_dispense:{
+      runMotorForMiliseceonds(200);
+      delay(150);
+      float weight = scale.getWeight(5);
+      Serial.println(weight);
+      if(weight >= TARGET_WEIGHT_GRAMS){
+        mode = Mode::done;
+        Serial.println("Dispense complete.");
+      }
+      break;
+    }
+    case Mode::done:{
+      float weight = scale.getWeight(10);
+      Serial.println(weight);
+      break;
+    }
   }
-
-  //Serial.print("Weight: ");
-  Serial.println(weight, 2);
-  //Serial.println(" g");
+  
 
 }
