@@ -57,15 +57,15 @@ Arduino nano
 0,91 Zoll OLED LCD Display Modul Mini IIC 128 × 32 https://www.amazon.de/dp/B0CT2QP43S
 2x 28BYJ-48 with ULN2003
 
-### 3d Modell an printing
+### 3d Modell and printing
 
 The system is modeled using Onshape and then 3d printed.
-Model Link: https://cad.onshape.com/documents/0dff8796480512d936f44321/w/78978a18521bd89a6884aa3c/e/6b9b33d8fd7be016eea2bcd9?renderMode=0&uiState=6a44ede6a47f8baaa3505c5f
+Modell link: https://cad.onshape.com/documents/0dff8796480512d936f44321/w/78978a18521bd89a6884aa3c/e/6b9b33d8fd7be016eea2bcd9?renderMode=0&uiState=6a44ede6a47f8baaa3505c5f
 
 ## Open Problems
 
-How can we filter out vibrations from the mill the bes way?
-
+How can we filter out vibrations from the mill the best way? 
 how can we model the system to predict the the weight of the dispensed beans most accurately?
+Right now we use a moving windows and a linear regression. Maybe use a Kalman Filter or something like that?
 
 how can we control the mills motor the best (Bezerra bb005)
