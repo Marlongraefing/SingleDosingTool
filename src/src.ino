@@ -10,7 +10,7 @@
  * 3. Observe the raw reading from the HX711.
  * 4. Calculate the scale factor using:
  *      scale_factor = raw_reading / known_weight
- * 5. Replace this value eith scale_factor:
+ * 5. Replace this value with scale_factor:
  *      scale.set_scale(scale_factor);
  *
  * Tips:
@@ -46,12 +46,12 @@ const float TARGET_WEIGHT_GRAMS = 16.0;
 
 // 28BYJ-48 stepper via ULN2003 on D2-D5
 // Wiring: D2=IN4, D3=IN3, D4=IN2, D5=IN1
-// AccelStepper HALF4WIRE pin order: IN1,IN3,IN2,IN4 → D5,D3,D4,D2
-const int STEPS_PER_REV = 4096;   // half-step mode (smoother)
-const int MOTOR_RPM     = 15;
-// 15 RPM * 4096 steps/rev / 60 s = ~1024 steps/s
+// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D5,D3,D4,D2
+const int STEPS_PER_REV = 2048;   // full-step mode (provides higher torque)
+const int MOTOR_RPM     = 12;      // slightly reduced RPM for significantly more torque
+// 12 RPM * 2048 steps/rev / 60 s = ~410 steps/s
 const float MOTOR_SPEED_SPS = (float)MOTOR_RPM * STEPS_PER_REV / 60.0;
-AccelStepper stepper(AccelStepper::HALF4WIRE, 5, 3, 4, 2);
+AccelStepper stepper(AccelStepper::FULL4WIRE, 5, 3, 4, 2);
 
 /**
  * Calibration factor
@@ -59,8 +59,13 @@ AccelStepper stepper(AccelStepper::HALF4WIRE, 5, 3, 4, 2);
  * - Adjust after calibration for your load cell
  */
 
- //TODO: needs to be fixed
-float CALIBRATION_FACTOR = 1104;
+// Adjusted based on actual vs reported measurements:
+// Formula: 1104 * (16.67 / 17.7) = ~1039.8
+float CALIBRATION_FACTOR = 1039.8;
+
+#include "WeightRegressor.h"
+
+WeightRegressor regressor;
 
 /**
  * HX711 instance
@@ -74,7 +79,7 @@ void disableStepper() {
 }
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200); // Increased from 9600 to 115200 to prevent Serial buffer blocking
   stepper.setMaxSpeed(MOTOR_SPEED_SPS);
   stepper.setSpeed(MOTOR_SPEED_SPS);
 
@@ -89,6 +94,7 @@ void setup() {
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
     for(;;); // Don't proceed, loop forever
   }
+  Wire.setClock(400000); // Speed up I2C to 400kHz to minimize stepper stepping interruptions
   display.clearDisplay();
   display.setTextColor(SSD1306_WHITE);
   display.setTextSize(1);  
@@ -100,6 +106,7 @@ void setup() {
 
   delay(4000);
   scale.tare(10);   /* tare with full reservoir */
+  regressor.reset();
 
   display.clearDisplay();
   display.setCursor(0, 0);  
@@ -131,12 +138,6 @@ void drawWeights(float target, float dispensed) {
   display.println(dispensed);
 
   display.display();
-
-  Serial.print("dispensed:");
-  Serial.print(dispensed);
-  Serial.print("g target:");
-  Serial.print(target);
-  Serial.println("g");
 }
 
 
@@ -146,6 +147,8 @@ enum class Mode{
 };
 
 Mode mode = Mode::fast_dispense;
+unsigned long lastDisplayUpdate = 0;
+const unsigned long DISPLAY_UPDATE_INTERVAL_MS = 250; // Update display every 250ms during dispense
 
 void loop() {
 
@@ -155,11 +158,31 @@ void loop() {
 
       // only read scale when HX711 has new data ready (DOUT LOW)
       if (digitalRead(HX_DOUT_PIN) == LOW) {
-        float dispensed = -scale.getWeight(1);
-        drawWeights(TARGET_WEIGHT_GRAMS, dispensed);
-        if (dispensed >= TARGET_WEIGHT_GRAMS) {
+        float dispensedRaw = -scale.getWeight(1);
+        unsigned long currentMillis = millis();
+
+        // Feed measurement into linear regressor
+        regressor.addSample(currentMillis, dispensedRaw);
+
+        // Get predicted weight filtering out random high frequency vibrations
+        float dispensedPredicted = regressor.predict(currentMillis);
+        
+        if (currentMillis - lastDisplayUpdate >= DISPLAY_UPDATE_INTERVAL_MS) {
+          drawWeights(TARGET_WEIGHT_GRAMS, dispensedPredicted);
+          lastDisplayUpdate = currentMillis;
+        }
+
+        // Print raw and predicted values for plotting / monitoring
+        // This is safe even at high frequencies now thanks to 115200 Baud!
+        Serial.print("raw:");
+        Serial.print(dispensedRaw, 2);
+        Serial.print(",predicted:");
+        Serial.println(dispensedPredicted, 2);
+
+        if (dispensedPredicted >= TARGET_WEIGHT_GRAMS) {
           disableStepper();
           mode = Mode::done;
+          drawWeights(TARGET_WEIGHT_GRAMS, dispensedPredicted); // Ensure final exact weight is displayed
           Serial.println("Dispense complete.");
         }
       }

@@ -1,0 +1,42 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build and Run Unit Tests (g++)",
+            "command": "g++",
+            "args": [
+                "-O2",
+                "-std=c++11",
+                "test/test_regressor.cpp",
+                "-o",
+                "test/test_regressor.exe"
+            ],
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "postResponses": [
+                "Run Tests"
+            ],
+            "dependsOn": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Run Tests",
+            "command": ".\\test\\test_regressor.exe",
+            "group": "test",
+            "presentation": {
+                "reveal": "always",
+                "panel": "shared"
+            }
+        }
+    ]
+}
