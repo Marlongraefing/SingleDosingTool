@@ -36,22 +36,32 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 /**
  * Pin configuration
- * - HX_DOUT_PIN : HX711 DOUT pin
- * - HX_SCK_PIN  : HX711 SCK pin
- * - STEPPER_IN1-4: ULN2003 stepper driver inputs (D2-D5)
+ * - HX_DOUT_PIN : HX711 DOUT pin (A1 based on updated PinLayout.md)
+ * - HX_SCK_PIN  : HX711 SCK pin (A2 based on updated PinLayout.md)
  */
-const int HX_DOUT_PIN = 10;
-const int HX_SCK_PIN  = 11;
+const int HX_DOUT_PIN = A1;
+const int HX_SCK_PIN  = A2;
 const float TARGET_WEIGHT_GRAMS = 16.0;
 
-// 28BYJ-48 stepper via ULN2003 on D2-D5
-// Wiring: D2=IN4, D3=IN3, D4=IN2, D5=IN1
-// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D5,D3,D4,D2
+// Buttons & Mill Relay (Pins updated based on PinLayout.md)
+const int MILL_BUTTON_PIN = 2; // Supports hardware interrupt INT0
+const int MILL_RELAY_PIN  = 12;
+
+// Stepper Motor Definitions & Grouping
 const int STEPS_PER_REV = 2048;   // full-step mode (provides higher torque)
 const int MOTOR_RPM     = 12;      // slightly reduced RPM for significantly more torque
 // 12 RPM * 2048 steps/rev / 60 s = ~410 steps/s
 const float MOTOR_SPEED_SPS = (float)MOTOR_RPM * STEPS_PER_REV / 60.0;
-AccelStepper stepper(AccelStepper::FULL4WIRE, 5, 3, 4, 2);
+
+// Motor 1: 28BYJ-48 stepper via ULN2003 on D4-D7
+// Wiring: D4=IN1, D5=IN2, D6=IN3, D7=IN4
+// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D4,D6,D5,D7
+AccelStepper stepper(AccelStepper::FULL4WIRE, 4, 6, 5, 7);
+
+// Motor 2: 28BYJ-48 stepper via ULN2003 on D8-D11
+// Wiring: D8=IN1, D9=IN2, D10=IN3 (Conflict resolved by shifting Relay to D12!), D11=IN4
+// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D8,D10,D9,D11
+AccelStepper stepper2(AccelStepper::FULL4WIRE, 8, 10, 9, 11);
 
 /**
  * Calibration factor
@@ -76,12 +86,22 @@ HX711_7semi scale(HX_DOUT_PIN, HX_SCK_PIN);
 // Power off stepper coils to prevent heating when idle
 void disableStepper() {
   stepper.disableOutputs();
+  stepper2.disableOutputs();
 }
 
 void setup() {
   Serial.begin(115200); // Increased from 9600 to 115200 to prevent Serial buffer blocking
+  
+  // Set up both motor drivers
   stepper.setMaxSpeed(MOTOR_SPEED_SPS);
   stepper.setSpeed(MOTOR_SPEED_SPS);
+  stepper2.setMaxSpeed(MOTOR_SPEED_SPS);
+  stepper2.setSpeed(MOTOR_SPEED_SPS);
+
+  // Set up Button and Relay Pins
+  pinMode(MILL_BUTTON_PIN, INPUT_PULLUP);
+  pinMode(MILL_RELAY_PIN, OUTPUT);
+  digitalWrite(MILL_RELAY_PIN, LOW); // Start with Relay disabled (Safe!)
 
   scale.begin();
   scale.setGain(GAIN_128);
