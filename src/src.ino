@@ -54,12 +54,12 @@ const int MOTOR_RPM     = 12;      // slightly reduced RPM for significantly mor
 const float MOTOR_SPEED_SPS = (float)MOTOR_RPM * STEPS_PER_REV / 60.0;
 
 // Motor 1: 28BYJ-48 stepper via ULN2003 on D4-D7
-// Wiring: D4=IN1, D5=IN2, D6=IN3, D7=IN4
-// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D4,D6,D5,D7
-AccelStepper stepper(AccelStepper::FULL4WIRE, 4, 6, 5, 7);
+// Wiring: D4=IN4, D5=IN3, D6=IN2, D7=IN1 (Reversed order in PinLayout.md!)
+// AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D7,D5,D6,D4
+AccelStepper stepper(AccelStepper::FULL4WIRE, 7, 5, 6, 4);
 
 // Motor 2: 28BYJ-48 stepper via ULN2003 on D8-D11
-// Wiring: D8=IN1, D9=IN2, D10=IN3 (Conflict resolved by shifting Relay to D12!), D11=IN4
+// Wiring: D8=IN1, D9=IN2, D10=IN3, D11=IN4
 // AccelStepper FULL4WIRE pin order: IN1,IN3,IN2,IN4 → D8,D10,D9,D11
 AccelStepper stepper2(AccelStepper::FULL4WIRE, 8, 10, 9, 11);
 
@@ -174,7 +174,8 @@ void loop() {
 
   switch(mode){
     case Mode::fast_dispense:{
-      stepper.runSpeed();  // keep motor stepping as fast as possible
+      stepper.runSpeed();   // keep motor 1 stepping as fast as possible
+      stepper2.runSpeed();  // keep motor 2 stepping as fast as possible
 
       // only read scale when HX711 has new data ready (DOUT LOW)
       if (digitalRead(HX_DOUT_PIN) == LOW) {

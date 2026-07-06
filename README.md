@@ -57,6 +57,8 @@ Arduino Nano
 0.91 inch OLED LCD Display Module Mini IIC 128 × 32 https://www.amazon.de/dp/B0CT2QP43S
 2x 28BYJ-48 with ULN2003
 
+https://app.cirkitdesigner.com/project/4007499b-9b01-44e2-a004-56db9d34cd1c
+
 ### 3d Model and printing
 
 The system is modeled using Onshape and then 3D printed.
